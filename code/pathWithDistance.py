@@ -63,7 +63,6 @@ with open(file_path, 'r') as file:
 
 # 데이터 길이 확인
 data_length = len(VIO_x)
-print(f'Data length: {data_length}')
 assert len(Anchor1_x) == data_length
 assert len(Anchor2_x) == data_length
 assert len(Anchor3_x) == data_length
@@ -72,34 +71,47 @@ assert len(Anchor1_Distance) == data_length
 assert len(realDistance) == data_length
 
 # 애니메이션 설정
-fig, ax = plt.subplots()
-line, = ax.plot([], [], 'b-', label='VIO Path')
-anchor1_scatter = ax.scatter([], [], color='red', label='Anchor 1')
-anchor2_scatter = ax.scatter([], [], color='green', label='Anchor 2')
-anchor3_scatter = ax.scatter([], [], color='blue', label='Anchor 3')
-target_scatter = ax.scatter([], [], color='magenta', marker='*', s=100, label='Target')
+fig, (ax_path, ax_distances) = plt.subplots(2, 1, figsize=(8, 12))
+fig.tight_layout(pad=5)
 
-# Anchor 및 Target 원 초기화 (animated=True 추가)
+# 경로 그래프 설정
+line, = ax_path.plot([], [], 'b-', label='VIO Path')
+anchor1_scatter = ax_path.scatter([], [], color='red', label='Anchor 1')
+anchor2_scatter = ax_path.scatter([], [], color='green', label='Anchor 2')
+anchor3_scatter = ax_path.scatter([], [], color='blue', label='Anchor 3')
+target_scatter = ax_path.scatter([], [], color='magenta', marker='*', s=100, label='Target')
+
 anchor1_circle = patches.Circle((0, 0), 0, color='red', fill=False, linestyle='--', animated=True)
 anchor2_circle = patches.Circle((0, 0), 0, color='green', fill=False, linestyle='--', animated=True)
 anchor3_circle = patches.Circle((0, 0), 0, color='blue', fill=False, linestyle='--', animated=True)
 target_circle = patches.Circle((0, 0), 0, color='magenta', fill=False, linestyle='--', animated=True)
 
-ax.add_patch(anchor1_circle)
-ax.add_patch(anchor2_circle)
-ax.add_patch(anchor3_circle)
-ax.add_patch(target_circle)
+ax_path.add_patch(anchor1_circle)
+ax_path.add_patch(anchor2_circle)
+ax_path.add_patch(anchor3_circle)
+ax_path.add_patch(target_circle)
 
-# 축 범위 설정
-all_x = VIO_x + Anchor1_x + Anchor2_x + Anchor3_x + Target_x
-all_y = VIO_y + Anchor1_y + Anchor2_y + Anchor3_y + Target_y
-ax.set_xlim(-10, 10)
-ax.set_ylim(-10, 10)
-ax.set_xlabel('X Position')
-ax.set_ylabel('Y Position')
-ax.set_title('VIO Path with Anchors and Target')
-ax.grid(True)
-ax.legend()
+ax_path.set_xlim(-100, 100)
+ax_path.set_ylim(-100, 100)
+ax_path.set_xlabel('X Position')
+ax_path.set_ylabel('Y Position')
+ax_path.set_title('VIO Path with Anchors and Target')
+ax_path.grid(True)
+ax_path.legend()
+
+# 거리 그래프 설정
+ax_distances.set_xlim(0, data_length)
+ax_distances.set_ylim(0, max(max(Anchor1_Distance), max(Anchor2_Distance), max(Anchor3_Distance), max(realDistance)) * 1.1)
+ax_distances.set_xlabel('Frame')
+ax_distances.set_ylabel('Distance')
+ax_distances.set_title('Distances to Anchors and Target')
+ax_distances.grid(True)
+
+line_anchor1_dist, = ax_distances.plot([], [], color='red', label='Anchor 1 Distance')
+line_anchor2_dist, = ax_distances.plot([], [], color='green', label='Anchor 2 Distance')
+line_anchor3_dist, = ax_distances.plot([], [], color='blue', label='Anchor 3 Distance')
+line_real_dist, = ax_distances.plot([], [], color='magenta', label='Target Distance')
+ax_distances.legend()
 
 # 초기화 함수
 def init():
@@ -113,7 +125,15 @@ def init():
     anchor2_circle.set_radius(0)
     anchor3_circle.set_radius(0)
     target_circle.set_radius(0)
-    return line, anchor1_scatter, anchor2_scatter, anchor3_scatter, target_scatter, anchor1_circle, anchor2_circle, anchor3_circle, target_circle
+
+    line_anchor1_dist.set_data([], [])
+    line_anchor2_dist.set_data([], [])
+    line_anchor3_dist.set_data([], [])
+    line_real_dist.set_data([], [])
+
+    return (line, anchor1_scatter, anchor2_scatter, anchor3_scatter, target_scatter,
+            anchor1_circle, anchor2_circle, anchor3_circle, target_circle,
+            line_anchor1_dist, line_anchor2_dist, line_anchor3_dist, line_real_dist)
 
 # 업데이트 함수
 def update(frame):
@@ -123,7 +143,6 @@ def update(frame):
     anchor3_scatter.set_offsets([[Anchor3_x[frame], Anchor3_y[frame]]])
     target_scatter.set_offsets([[Target_x[frame], Target_y[frame]]])
 
-    # Anchor 원 업데이트
     anchor1_circle.center = (Anchor1_x[frame], Anchor1_y[frame])
     anchor1_circle.set_radius(Anchor1_Distance[frame])
 
@@ -133,15 +152,18 @@ def update(frame):
     anchor3_circle.center = (Anchor3_x[frame], Anchor3_y[frame])
     anchor3_circle.set_radius(Anchor3_Distance[frame])
 
-    # Target 원 업데이트
     target_circle.center = (Target_x[frame], Target_y[frame])
     target_circle.set_radius(realDistance[frame])
 
-    return line, anchor1_scatter, anchor2_scatter, anchor3_scatter, target_scatter, anchor1_circle, anchor2_circle, anchor3_circle, target_circle
+    line_anchor1_dist.set_data(range(frame+1), Anchor1_Distance[:frame+1])
+    line_anchor2_dist.set_data(range(frame+1), Anchor2_Distance[:frame+1])
+    line_anchor3_dist.set_data(range(frame+1), Anchor3_Distance[:frame+1])
+    line_real_dist.set_data(range(frame+1), realDistance[:frame+1])
+
+    return (line, anchor1_scatter, anchor2_scatter, anchor3_scatter, target_scatter,
+            anchor1_circle, anchor2_circle, anchor3_circle, target_circle,
+            line_anchor1_dist, line_anchor2_dist, line_anchor3_dist, line_real_dist)
 
 # 애니메이션 생성
 ani = FuncAnimation(fig, update, frames=data_length, init_func=init, interval=50, blit=True)
-
-
-
-plt.show(block = True)
+plt.show(block=True)
